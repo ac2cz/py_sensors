@@ -37,6 +37,8 @@ from sensors_state import (
     load_state, load_config,
     STATE_DEFAULTS, CONFIG_DEFAULTS,
 )
+from gpiozero import MotionSensor
+
 
 # Sensor valid-flag values (match the C SENSOR_* enum)
 SENSOR_OFF = 0
@@ -62,7 +64,7 @@ TELEM_FORMAT = "<I I H H H H H H H H H H H H H B B I B"
 TELEM_SIZE = struct.calcsize(TELEM_FORMAT)
 
 VERBOSE = False
-
+pir = MotionSensor(26)
 _running = True
 
 def _handle_sigterm(signum, frame):
@@ -183,6 +185,9 @@ def read_sensors(sense, state):
             if VERBOSE:
                 print(f"Colour read failed: {e}")
 
+    if pir.motion_detected:
+        if VERBOSE:
+            print("motion detected")
     return t
 
 
@@ -326,6 +331,7 @@ def main():
         print(f"Sensors started. RT={rt_path} WOD={wod_path}")
         print(f"State={state_path} Config={config_path}")
         print(f"Record size: {TELEM_SIZE} bytes")
+
 
     # Load initial state so we have periods before the first loop pass.
     state = load_state(state_path, STATE_DEFAULTS, VERBOSE)
