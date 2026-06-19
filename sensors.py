@@ -39,6 +39,8 @@ from sensors_state import (
 )
 from gpiozero import MotionSensor
 
+# Clock sanity: timestamps before this are treated as "clock not set".
+CLOCK_2024_01_01 = 1704085200
 
 # Sensor valid-flag values (match the C SENSOR_* enum)
 SENSOR_OFF = 0
@@ -338,8 +340,7 @@ def main():
 
     now = time.time()
     last_wod = now
-    last_sample = 0          # force a sample on the first eligible pass
-    last_state_check = now
+    last_sample = 0          # force a sample on the first eligible pass last_state_check = now
     file_io_errors = 0
     last_packed = None       # most recent packed record, used by WOD
 
@@ -351,7 +352,7 @@ def main():
         wod_period = state["period_to_store_wod_in_seconds"]
         wod_max_kb = state["wod_max_file_size_in_kb"]
 
-        if sample_period > 0:
+        if sample_period > 0 and now >= CLOCK_2024_01_01:
 
             # --- WOD: append last sample on the WOD period, roll if too big ---
             if wod_period > 0 and last_packed is not None and \
@@ -376,6 +377,8 @@ def main():
                     file_io_errors += 1
                 elif VERBOSE:
                     print(f"Wrote RT at {t['timestamp']} ({len(last_packed)} bytes)")
+        elif sample_period > 0 and VERBOSE:
+            print("clock not set, skipping telemetry")
 
         # Fallback state recheck so a change to the sample period (or to enable
         # sampling at all) is picked up even when the current period is long or
