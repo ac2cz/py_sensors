@@ -1,4 +1,4 @@
-#!/home/pi/iors_control_venv/bin/python
+#!/opt/iors/iors_control_venv/bin/python
 """
 sensors.py - Student On Orbit Sensor System (Python port)
 
@@ -62,7 +62,8 @@ STATE_FILE_NAME = "sensors.state"
 CONFIG_FILE_NAME = "sensors.config"
 
 # Packed record format for sensor_telemetry_t (little-endian, no padding).
-TELEM_FORMAT = "<I I H H H H H H H H H H H H H B B I B"
+TELEM_FORMAT = "<I I H H H H H H H H H H H H H B B I H"
+
 TELEM_SIZE = struct.calcsize(TELEM_FORMAT)
 
 VERBOSE = False
@@ -113,6 +114,8 @@ def read_sensors(sense, state):
         "MagX": 0, "MagY": 0, "MagZ": 0,
         "IMUTemp": 0,
         "light_level": 0, "light_RGB": 0,
+        "MotionDetected": 0,
+        "PirValid": SENSOR_OFF,
         "ImuValid": SENSOR_OFF,
         "TempHumidityValid": SENSOR_OFF,
         "PressureValid": SENSOR_OFF,
@@ -187,9 +190,18 @@ def read_sensors(sense, state):
             if VERBOSE:
                 print(f"Colour read failed: {e}")
 
-    if pir.motion_detected:
-        if VERBOSE:
-            print("motion detected")
+    # --- PIR motion (GPIO 26) ---
+    if state["pir_enabled"]:
+        try:
+            d = 1 if pir.motion_detected else 0
+            t["MotionDetected"] = d
+            if VERBOSE:
+                print(f"PIR: {d}")
+            t["PirValid"] = SENSOR_ON
+        except Exception as e:
+            t["PirValid"] = SENSOR_ERR
+            if VERBOSE:
+                print(f"PIR read failed: {e}")
     return t
 
 
@@ -198,10 +210,13 @@ def read_sensors(sense, state):
 # --------------------------------------------------------------------------
 def pack_telemetry(t):
     """Pack the telemetry dict into bytes matching sensor_telemetry_t."""
-    flags = ((t["ImuValid"] & 0x3) |
-             ((t["TempHumidityValid"] & 0x3) << 2) |
-             ((t["PressureValid"] & 0x3) << 4) |
-             ((t["ColorValid"] & 0x3) << 6))
+    flags = ((t["MotionDetected"] & 0x1) |
+             ((t["PirValid"] & 0x3) << 1) |
+             # bits 3-7 pad1
+             ((t["ImuValid"] & 0x3) << 8) |
+             ((t["TempHumidityValid"] & 0x3) << 10) |
+             ((t["PressureValid"] & 0x3) << 12) |
+             ((t["ColorValid"] & 0x3) << 14))
 
     return struct.pack(
         TELEM_FORMAT,
