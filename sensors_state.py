@@ -19,6 +19,7 @@ STATE_DEFAULTS = {
     "temp_humidity_enabled": 0,
     "pressure_enabled": 0,
     "color_enabled": 0,
+    "pir_enabled": 0,
 }
 
 # Keys that are integers (all of them, in this build)
