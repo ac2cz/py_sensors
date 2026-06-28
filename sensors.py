@@ -355,11 +355,13 @@ def main():
 
     now = time.time()
     last_wod = now
-    last_sample = 0          # force a sample on the first eligible pass last_state_check = now
+    last_sample = 0          # force a sample on the first eligible pass 
+    last_state_check = now
     file_io_errors = 0
     last_packed = None       # most recent packed record, used by WOD
 
     signal.signal(signal.SIGTERM, _handle_sigterm)
+    signal.signal(signal.SIGINT, _handle_sigterm
 
     while _running:
         now = time.time()
