@@ -56,7 +56,7 @@ STATE_RECHECK_PERIOD = 60
 
 DEFAULT_DATA_FOLDER = "/ariss"
 RT_TELEM_NAME = "rt_telemetry.dat"
-WOD_SUBDIR    = "pacsat/wod"          # relative to the data dir
+WOD_SUBDIR    = "pacsat/senwod"          # relative to the data dir
 WOD_PREFIX    = "sooss_wod_"          # roll appends YYMMDDHHMM
 STATE_FILE_NAME = "sensors.state"
 CONFIG_FILE_NAME = "sensors.config"
