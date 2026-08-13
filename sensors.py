@@ -361,7 +361,7 @@ def main():
     last_packed = None       # most recent packed record, used by WOD
 
     signal.signal(signal.SIGTERM, _handle_sigterm)
-    signal.signal(signal.SIGINT, _handle_sigterm
+    signal.signal(signal.SIGINT, _handle_sigterm)
 
     while _running:
         now = time.time()
