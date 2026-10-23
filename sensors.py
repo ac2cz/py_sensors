@@ -113,7 +113,9 @@ def read_sensors(sense, state):
         "GyroX": 0, "GyroY": 0, "GyroZ": 0,
         "MagX": 0, "MagY": 0, "MagZ": 0,
         "IMUTemp": 0,
-        "light_level": 0, "light_RGB": 0,
+        "light_level": 0, 
+        "WodSizeKB": 0, 
+        "light_RGB": 0,
         "MotionDetected": 0,
         "PirValid": SENSOR_OFF,
         "ImuValid": SENSOR_OFF,
@@ -230,7 +232,7 @@ def pack_telemetry(t):
         t["MagX"], t["MagY"], t["MagZ"],
         t["IMUTemp"],
         t["light_level"],
-        0,                       # pad1
+        t["WodSizeKB"],
         t["light_RGB"] & 0xFFFFFFFF,
         flags,
     )
@@ -359,6 +361,11 @@ def main():
     last_state_check = now
     file_io_errors = 0
     last_packed = None       # most recent packed record, used by WOD
+    wod_size_kb = 0
+    try:
+        wod_size_kb = os.path.getsize(wod_tmp_name(wod_path)) // 1024
+    except OSError:
+        pass
 
     signal.signal(signal.SIGTERM, _handle_sigterm)
     signal.signal(signal.SIGINT, _handle_sigterm)
@@ -378,8 +385,10 @@ def main():
                 size = wod_append(wod_path, last_packed)
                 if size < 0:
                     file_io_errors += 1
-                elif size / 1024 > wod_max_kb:
-                    wod_roll(wod_path)
+                elif size / 1024 > wod_max_kb and wod_roll(wod_path):
+                    wod_size_kb = 0
+                else:
+                    wod_size_kb = size // 1024
 
             # --- Sample: read sensors, write RT ---
             if (now - last_sample) >= sample_period:
@@ -389,6 +398,7 @@ def main():
                 last_state_check = now
 
                 t = read_sensors(sense, state)
+                t["WodSizeKB"] = clamp_u8(wod_size_kb)
                 last_packed = pack_telemetry(t)
                 if not save_rt_telem(last_packed, rt_path):
                     file_io_errors += 1
