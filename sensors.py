@@ -39,8 +39,10 @@ from sensors_state import (
 )
 from gpiozero import MotionSensor
 
-# Clock sanity: timestamps before this are treated as "clock not set".
-CLOCK_2024_01_01 = 1704085200
+# Clock sanity: wall clock outside this range is treated as "clock not set".
+# These must match CLOCK_FLOOR and CLOCK_CEILING in the C code.  All UTC.
+CLOCK_FLOOR = 1767225600      # 2026-01-01 00:00:00 UTC
+CLOCK_CEILING = 2145916800    # 2038-01-01 00:00:00 UTC
 
 # Sensor valid-flag values (match the C SENSOR_* enum)
 SENSOR_OFF = 0
@@ -355,9 +357,11 @@ def main():
     # Load initial state so we have periods before the first loop pass.
     state = load_state(state_path, STATE_DEFAULTS, VERBOSE)
 
-    now = time.time()
+    # Cadence uses the monotonic clock so a ground time-set that steps the
+    # wall clock (forwards or backwards) cannot stall sampling.
+    now = time.monotonic()
     last_wod = now
-    last_sample = 0          # force a sample on the first eligible pass 
+    last_sample = None       # force a sample on the first eligible pass
     last_state_check = now
     file_io_errors = 0
     last_packed = None       # most recent packed record, used by WOD
@@ -371,12 +375,13 @@ def main():
     signal.signal(signal.SIGINT, _handle_sigterm)
 
     while _running:
-        now = time.time()
+        now = time.monotonic()   # cadence only
+        wall = time.time()       # clock gate only
         sample_period = state["period_to_sample_telem_in_seconds"]
         wod_period = state["period_to_store_wod_in_seconds"]
         wod_max_kb = state["wod_max_file_size_in_kb"]
 
-        if sample_period > 0 and now >= CLOCK_2024_01_01:
+        if sample_period > 0 and CLOCK_FLOOR <= wall <= CLOCK_CEILING:
 
             # --- WOD: append last sample on the WOD period, roll if too big ---
             if wod_period > 0 and last_packed is not None and \
@@ -391,7 +396,7 @@ def main():
                     wod_size_kb = size // 1024
 
             # --- Sample: read sensors, write RT ---
-            if (now - last_sample) >= sample_period:
+            if last_sample is None or (now - last_sample) >= sample_period:
                 last_sample = now
                 # Re-read state each sample so ground commands take effect.
                 state = load_state(state_path, STATE_DEFAULTS, False)
@@ -429,3 +434,4 @@ if __name__ == "__main__":
         sys.exit(main())
     except KeyboardInterrupt:
         pass
+
